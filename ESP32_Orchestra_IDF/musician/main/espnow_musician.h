@@ -19,7 +19,7 @@ typedef struct {
 
 // ESP-NOW Functions
 esp_err_t espnow_musician_init(uint8_t musician_id);
-void espnow_on_data_recv(const uint8_t *mac, const uint8_t *incomingData, int len);
+void espnow_on_data_recv(const esp_now_recv_info_t *recv_info, const uint8_t *incomingData, int len);
 
 // Message Handlers
 void handle_song_start(const orchestra_message_t* msg);
@@ -32,6 +32,8 @@ void handle_heartbeat(const orchestra_message_t* msg);
 // Utility Functions
 bool is_message_for_me(const orchestra_message_t* msg);
 void update_musician_status(void);
+void print_debug_info(void);
+void check_communication_timeout(void);
 
 // Getter functions
 musician_state_t* get_musician_state(void);

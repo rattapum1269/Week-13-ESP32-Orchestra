@@ -76,14 +76,24 @@ esp_err_t espnow_musician_init(uint8_t musician_id) {
     return ESP_OK;
 }
 
-void espnow_on_data_recv(const uint8_t *mac, const uint8_t *incomingData, int len) {
+void espnow_on_data_recv(const esp_now_recv_info_t *recv_info, const uint8_t *incomingData, int len) {
+    // ✅ Debug: รับข้อมูลแล้ว!
+    ESP_LOGI(TAG, "📡 ESP-NOW Data Received! Size: %d bytes", len);
+    ESP_LOGI(TAG, "📡 From MAC: %02x:%02x:%02x:%02x:%02x:%02x", 
+             recv_info->src_addr[0], recv_info->src_addr[1], recv_info->src_addr[2],
+             recv_info->src_addr[3], recv_info->src_addr[4], recv_info->src_addr[5]);
+    
     if (len != sizeof(orchestra_message_t)) {
-        ESP_LOGW(TAG, "⚠️ Invalid message size: %d", len);
+        ESP_LOGW(TAG, "⚠️ Invalid message size: %d (expected: %d)", len, sizeof(orchestra_message_t));
         return;
     }
     
     orchestra_message_t msg;
     memcpy(&msg, incomingData, sizeof(msg));
+    
+    // Debug: แสดงข้อมูลใน message
+    ESP_LOGI(TAG, "📡 Message Type: %d, Part ID: %d, Song ID: %d", 
+             msg.type, msg.part_id, msg.song_id);
     
     // Verify checksum
     if (!verify_checksum(&msg)) {
@@ -103,22 +113,27 @@ void espnow_on_data_recv(const uint8_t *mac, const uint8_t *incomingData, int le
     // Handle message based on type
     switch (msg.type) {
         case MSG_SONG_START:
+            ESP_LOGI(TAG, "🎼 Processing SONG_START message");
             handle_song_start(&msg);
             break;
             
         case MSG_PLAY_NOTE:
+            ESP_LOGI(TAG, "🎵 Processing PLAY_NOTE message");
             handle_play_note(&msg);
             break;
             
         case MSG_STOP_NOTE:
+            ESP_LOGI(TAG, "🔇 Processing STOP_NOTE message");
             handle_stop_note(&msg);
             break;
             
         case MSG_SONG_END:
+            ESP_LOGI(TAG, "🎊 Processing SONG_END message");
             handle_song_end(&msg);
             break;
             
         case MSG_SYNC_TIME:
+            ESP_LOGI(TAG, "⏰ Processing SYNC_TIME message");
             handle_sync_time(&msg);
             break;
             
@@ -134,7 +149,13 @@ void espnow_on_data_recv(const uint8_t *mac, const uint8_t *incomingData, int le
 
 bool is_message_for_me(const orchestra_message_t* msg) {
     // Check if message is for all musicians or specifically for this musician
-    return (msg->part_id == 0xFF || msg->part_id == musician_state.musician_id);
+    bool is_for_me = (msg->part_id == 0xFF || msg->part_id == musician_state.musician_id);
+    
+    // Debug: แสดงว่า message นี้เป็นของเราหรือไม่
+    ESP_LOGI(TAG, "🎯 Message for me? %s (msg part_id: %d, my id: %d)", 
+             is_for_me ? "YES" : "NO", msg->part_id, musician_state.musician_id);
+    
+    return is_for_me;
 }
 
 void handle_song_start(const orchestra_message_t* msg) {
@@ -190,14 +211,61 @@ void handle_sync_time(const orchestra_message_t* msg) {
 }
 
 void handle_heartbeat(const orchestra_message_t* msg) {
-    // Don't log heartbeats to avoid spam
-    // Just update timing
+    // Debug: แสดง heartbeat เป็นครั้งคราว
+    static uint32_t heartbeat_count = 0;
+    heartbeat_count++;
+    
+    if (heartbeat_count % 10 == 1) { // แสดงทุก 10 ครั้ง
+        ESP_LOGI(TAG, "💓 Heartbeat #%lu from conductor (timestamp: %lu)", 
+                 heartbeat_count, msg->timestamp);
+    }
+    
     musician_state.conductor_sync_time = msg->timestamp;
+}
+
+void print_debug_info(void) {
+    uint32_t current_time = get_time_ms();
+    ESP_LOGI(TAG, "🔍 === DEBUG INFO ===");
+    ESP_LOGI(TAG, "🔍 ESP-NOW Status: %s", musician_state.is_initialized ? "Initialized" : "Not Initialized");
+    ESP_LOGI(TAG, "🔍 Musician ID: %d", musician_state.musician_id);
+    ESP_LOGI(TAG, "🔍 Messages Received: %lu", musician_state.messages_received);
+    ESP_LOGI(TAG, "🔍 Time since last message: %lu ms", 
+             musician_state.messages_received > 0 ? (current_time - musician_state.last_message_time) : 0);
+    
+    // Get WiFi info
+    wifi_mode_t mode;
+    esp_wifi_get_mode(&mode);
+    ESP_LOGI(TAG, "🔍 WiFi Mode: %d", mode);
+    
+    uint8_t channel;
+    wifi_second_chan_t second;
+    esp_wifi_get_channel(&channel, &second);
+    ESP_LOGI(TAG, "🔍 WiFi Channel: %d", channel);
+    
+    // แสดงข้อมูล Message Types ที่รอรับ
+    ESP_LOGI(TAG, "🔍 Message Types Expected:");
+    ESP_LOGI(TAG, "🔍   Type 1 = SONG_START (to start playing)");
+    ESP_LOGI(TAG, "🔍   Type 2 = PLAY_NOTE (to play notes)");
+    ESP_LOGI(TAG, "🔍   Type 6 = HEARTBEAT (received %lu times)", musician_state.messages_received);
+    
+    if (musician_state.messages_received > 0 && !musician_state.is_active) {
+        ESP_LOGW(TAG, "🔍 ⚠️  Getting heartbeats but no SONG_START!");
+        ESP_LOGW(TAG, "🔍 ⚠️  Check if conductor is actually playing songs.");
+    }
+    
+    ESP_LOGI(TAG, "🔍 =================");
 }
 
 void update_musician_status(void) {
     static uint32_t last_status_update = 0;
+    static uint32_t last_debug_update = 0;
     uint32_t current_time = get_time_ms();
+    
+    // แสดง debug info ทุก 5 วินาที
+    if (current_time - last_debug_update > 5000) {
+        print_debug_info();
+        last_debug_update = current_time;
+    }
     
     if (current_time - last_status_update > 15000) { // Every 15 seconds
         ESP_LOGI(TAG, "📊 Musician %d Status:", musician_state.musician_id);

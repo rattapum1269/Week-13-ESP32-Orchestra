@@ -25,6 +25,11 @@
 #include "sound_player.h"
 #include "espnow_musician.h"
 
+// External functions
+extern void handle_song_start(const orchestra_message_t* msg);
+extern void handle_play_note(const orchestra_message_t* msg);  
+extern void handle_song_end(const orchestra_message_t* msg);
+
 static const char *TAG = "MAIN";
 
 // ⚠️ IMPORTANT: Change this for each musician ESP32
@@ -78,9 +83,13 @@ void app_main(void) {
     
     ESP_LOGI(TAG, "💡 LED Patterns:");
     ESP_LOGI(TAG, "   Slow blink = Ready/Waiting");
-    ESP_LOGI(TAG, "   Solid = Playing song");
+    ESP_LOGI(TAG, "   Solid = Playing song"); 
     ESP_LOGI(TAG, "   Fast blink = Error");
     ESP_LOGI(TAG, "   Heartbeat = Active communication");
+    
+    ESP_LOGI(TAG, "🔘 Button Functions:");
+    ESP_LOGI(TAG, "   Press BOOT button (GPIO 0) to test song playback");
+    ESP_LOGI(TAG, "   This will simulate SONG_START from conductor");
     
     // Create tasks
     xTaskCreate(led_task, "led_task", 2048, NULL, 3, &led_task_handle);
@@ -102,7 +111,17 @@ static void setup_gpio(void) {
     gpio_config(&led_config);
     gpio_set_level(STATUS_LED, 0);
     
-    ESP_LOGI(TAG, "✅ GPIO setup complete");
+    // Configure Button pin for testing
+    gpio_config_t button_config = {
+        .pin_bit_mask = (1ULL << BUTTON_PIN),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&button_config);
+    
+    ESP_LOGI(TAG, "✅ GPIO setup complete (LED + Button)");
 }
 
 static void print_musician_info(void) {
@@ -192,14 +211,69 @@ static void sound_task(void *pvParameters) {
     }
 }
 
+// Function to test song playback manually
+static void test_song_playback(void) {
+    ESP_LOGI(TAG, "🧪 Testing song playback manually...");
+    
+    // Create a fake SONG_START message
+    orchestra_message_t test_msg = {
+        .type = MSG_SONG_START,
+        .song_id = SONG_TWINKLE_STAR,
+        .part_id = MUSICIAN_ID,
+        .note = 0,
+        .velocity = 100,
+        .timestamp = get_time_ms(),
+        .duration_ms = 0,
+        .tempo_bpm = 120,
+        .checksum = 0
+    };
+    
+    ESP_LOGI(TAG, "🧪 Simulating SONG_START message...");
+    handle_song_start(&test_msg);
+    
+    // Test a few notes
+    vTaskDelay(pdMS_TO_TICKS(500));
+    
+    test_msg.type = MSG_PLAY_NOTE;
+    test_msg.note = NOTE_C4;
+    test_msg.duration_ms = 500;
+    ESP_LOGI(TAG, "🧪 Simulating PLAY_NOTE (C4)...");
+    handle_play_note(&test_msg);
+    
+    vTaskDelay(pdMS_TO_TICKS(600));
+    
+    test_msg.note = NOTE_G4;
+    ESP_LOGI(TAG, "🧪 Simulating PLAY_NOTE (G4)...");
+    handle_play_note(&test_msg);
+    
+    vTaskDelay(pdMS_TO_TICKS(600));
+    
+    test_msg.type = MSG_SONG_END;
+    ESP_LOGI(TAG, "🧪 Simulating SONG_END...");
+    handle_song_end(&test_msg);
+}
+
 static void status_task(void *pvParameters) {
+    static bool button_pressed_last = false;
+    static bool test_done = false;
+    
     while (1) {
+        // Check button for manual test
+        bool button_pressed = (gpio_get_level(BUTTON_PIN) == 0);
+        
+        if (button_pressed && !button_pressed_last && !test_done) {
+            ESP_LOGI(TAG, "🔘 Button pressed - starting test playback!");
+            test_song_playback();
+            test_done = true; // Only test once per boot
+        }
+        button_pressed_last = button_pressed;
+        
         // Check for communication timeout
         check_communication_timeout();
         
         // Update status periodically
         update_musician_status();
         
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Update every second
+        vTaskDelay(pdMS_TO_TICKS(100)); // Update every 100ms for button responsiveness
     }
 }

@@ -29,8 +29,6 @@ static const char *TAG = "MAIN";
 extern void conductor_send_song_events(void);
 
 // Button and LED state
-static bool button_pressed = false;
-static uint32_t last_button_time = 0;
 static uint8_t selected_song = 1; // Default to first song
 static led_pattern_t current_led_pattern = LED_SLOW_BLINK;
 static uint32_t led_last_update = 0;
@@ -134,8 +132,6 @@ static void button_task(void *pvParameters) {
 }
 
 static void handle_button_press(uint32_t press_duration) {
-    extern conductor_state_t conductor_state; // Access from espnow_conductor.c
-    
     if (press_duration < 1000) {
         // Short press: Cycle through songs
         // Note: We need to access conductor_state somehow
@@ -156,16 +152,14 @@ static void handle_button_press(uint32_t press_duration) {
         }
     } else {
         // Long press: Start/Stop song
-        // We need a way to check if playing
-        // For this example, let's use a simple approach
-        static bool is_playing = false;
-        
-        if (is_playing) {
+        if (is_conductor_playing()) {
             // Stop current song
             if (stop_song()) {
                 ESP_LOGI(TAG, "⏹️  Song stopped");
                 current_led_pattern = LED_SLOW_BLINK;
-                is_playing = false;
+            } else {
+                ESP_LOGE(TAG, "❌ Failed to stop song");
+                current_led_pattern = LED_FAST_BLINK;
             }
         } else {
             // Start selected song
@@ -173,7 +167,6 @@ static void handle_button_press(uint32_t press_duration) {
                 const orchestra_song_t* song = get_song_by_id(selected_song);
                 ESP_LOGI(TAG, "▶️  Playing: %s", song ? song->song_name : "Unknown");
                 current_led_pattern = LED_ON;
-                is_playing = true;
             } else {
                 ESP_LOGE(TAG, "❌ Failed to start song");
                 current_led_pattern = LED_FAST_BLINK;

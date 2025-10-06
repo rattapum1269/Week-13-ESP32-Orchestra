@@ -18,7 +18,7 @@ typedef struct {
 // ESP-NOW Functions
 esp_err_t espnow_conductor_init(void);
 esp_err_t espnow_send_message(const orchestra_message_t* msg);
-void espnow_on_data_sent(const uint8_t *mac_addr, esp_now_send_status_t status);
+void espnow_on_data_sent(const wifi_tx_info_t *info, esp_now_send_status_t status);
 
 // Orchestra Control Functions
 bool start_song(uint8_t song_id);
@@ -29,5 +29,7 @@ bool send_heartbeat(void);
 
 // Helper Functions
 void update_conductor_status(void);
+bool is_conductor_playing(void);
+conductor_state_t* get_conductor_state(void);
 
 #endif // ESPNOW_CONDUCTOR_H
