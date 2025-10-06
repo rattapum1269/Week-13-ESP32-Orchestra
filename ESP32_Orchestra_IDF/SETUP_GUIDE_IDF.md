@@ -1,5 +1,4 @@
 # คู่มือการใช้งาน ESP32 Orchestra กับ ESP-IDF
-## สำหรับนักเรียนและครู
 
 ![ESP-IDF Orchestra](https://via.placeholder.com/800x400?text=ESP-IDF+Orchestra+Setup)
 
@@ -395,25 +394,11 @@ idf.py app-trace
 
 ---
 
-## 💡 Tips สำหรับครู
 
-### การจัดเนื้อหา
-1. **วันที่ 1:** ESP-IDF basics, environment setup
-2. **วันที่ 2:** Build และ flash พื้นฐาน
-3. **วันที่ 3:** Orchestra project implementation
-4. **วันที่ 4:** Debugging และ optimization
-
-### การประเมิน ESP-IDF
-- **Technical Understanding:** FreeRTOS, HAL, build system
-- **Problem Solving:** Debug skills, log analysis
-- **Code Quality:** Memory management, error handling
-- **Professional Skills:** Version control, documentation
-
-### Resources สำหรับครู
+### Resources 
 - [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/)
 - [ESP32 Technical Reference](https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf)
 - [FreeRTOS Documentation](https://www.freertos.org/Documentation/RTOS_book.html)
 
 ---
 
-## 🎵 "ESP-IDF ให้พลังเต็มที่ของ ESP32 สำหรับการสร้างสรรค์ผลงานระดับมืออาชีพ!"
