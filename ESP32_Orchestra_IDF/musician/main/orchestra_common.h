@@ -13,7 +13,7 @@
 // ESP-NOW Configuration
 #define BROADCAST_ADDR {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 #define MAX_MUSICIANS 4
-#define ESPNOW_CHANNEL 1
+#define ESPNOW_CHANNEL 10
 
 // Message Types for Orchestra Communication
 typedef enum {

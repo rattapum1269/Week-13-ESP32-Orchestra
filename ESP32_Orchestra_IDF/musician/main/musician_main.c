@@ -33,7 +33,7 @@ extern void handle_song_end(const orchestra_message_t* msg);
 static const char *TAG = "MAIN";
 
 // ⚠️ IMPORTANT: Change this for each musician ESP32
-#define MUSICIAN_ID 0  // 0=Part A, 1=Part B, 2=Part C, 3=Part D
+#define MUSICIAN_ID 2  // 0=Part A, 1=Part B, 2=Part C, 3=Part D
 
 // LED Control
 static led_pattern_t current_led_pattern = LED_SLOW_BLINK;
